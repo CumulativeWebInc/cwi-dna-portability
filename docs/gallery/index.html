@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CWI Genome Gallery — all ten Expression Genomes</title>
+<meta name="description" content="Interactive explorer for the ten CWI Expression Genomes. Real data, live validation, real day/night resolution.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">{ }</span>
+    <div>
+      <h1>Genome Gallery</h1>
+      <p>CWI Expression Genome v1 — all ten agent identities, live</p>
+    </div>
+  </div>
+  <div class="shift-now" id="shift-now" aria-live="polite">
+    <span class="pulse"></span><span id="shift-now-text">resolving…</span>
+  </div>
+</header>
+
+<main>
+  <section class="intro">
+    <p>Every card below is fetched live from this site's published genome files —
+    no sample data. Click a card for the full genome, live day/night resolution
+    from the real <code>identity-shift.js</code> resolver, and validation by the
+    real <code>genome/validator.js</code>.</p>
+  </section>
+
+  <section class="grid" id="grid" aria-label="Genome cards"></section>
+
+  <section class="detail" id="detail" hidden aria-label="Genome detail">
+    <button class="back" id="back">← all genomes</button>
+    <div class="detail-head">
+      <div>
+        <h2 id="d-name"></h2>
+        <p class="urn" id="d-urn"></p>
+      </div>
+      <div class="badges">
+        <span class="badge" id="d-valid">…</span>
+        <span class="badge" id="d-match">…</span>
+      </div>
+    </div>
+    <div class="shift-toggle" role="group" aria-label="Expression shift">
+      <button data-override="auto" class="on">Auto</button>
+      <button data-override="force-day">Day</button>
+      <button data-override="force-night">Night</button>
+    </div>
+    <div class="expr" id="d-expr"></div>
+    <div class="actions">
+      <button id="copy-json">Copy JSON</button>
+      <button id="download-json">Download .genome.json</button>
+    </div>
+    <pre class="json" id="d-json"></pre>
+  </section>
+</main>
+
+<footer>
+  <p>Real data only — genomes load from <code>../genome/examples/</code> on this site.
+  <a href="https://github.com/CumulativeWebInc/cwi-dna-portability">repo</a> · MIT</p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
