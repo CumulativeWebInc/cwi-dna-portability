@@ -132,6 +132,15 @@ signed.signature.note =
   "Integrity hash over the canonical genome (signature section excluded). Not a cryptographic identity signature.";
 
 const outPath = join(ROOT, "examples", "muse-cwi.genome.json");
-writeFileSync(outPath, JSON.stringify(signed, null, 2) + "\n");
+const text = JSON.stringify(signed, null, 2) + "\n";
+writeFileSync(outPath, text);
 console.log("wrote", outPath);
+// Mirror under docs/: GitHub Pages serves /docs as the site root, so the
+// viewer page can only fetch same-origin relative paths. This copy is
+// generated — never hand-edit it; rebuild via this script.
+import { mkdirSync } from "node:fs";
+const docsDir = join(ROOT, "..", "docs", "genome", "examples");
+mkdirSync(docsDir, { recursive: true });
+writeFileSync(join(docsDir, "muse-cwi.genome.json"), text);
+console.log("wrote", join(docsDir, "muse-cwi.genome.json"));
 console.log("genome_hash", signed.signature.genome_hash);

@@ -278,7 +278,7 @@ $("btn-validate").onclick = runValidation;
 $("btn-clear").onclick = () => { input.value=""; report.innerHTML=""; };
 $("btn-ref").onclick = async () => {
   try {
-    const r = await fetch("../genome/examples/muse-cwi.genome.json");
+    const r = await fetch("genome/examples/muse-cwi.genome.json");
     if (!r.ok) throw new Error("HTTP "+r.status);
     input.value = await r.text();
     runValidation();
@@ -300,7 +300,7 @@ $("btn-bad").onclick = () => {
 (async () => {
   const view = $("genome-view");
   try {
-    const r = await fetch("../genome/examples/muse-cwi.genome.json");
+    const r = await fetch("genome/examples/muse-cwi.genome.json");
     if (!r.ok) throw new Error("HTTP "+r.status);
     const g = await r.json();
     const sections = ["identity","personality","attitude","expression","operational_state","capabilities","memory_policy","permissions","model","annotations","signature"];
