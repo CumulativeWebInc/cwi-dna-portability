@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CWI Expression Genome v1 — portable agent-identity package</title>
+<style>
+  :root { --bg:#0b0f1a; --panel:#121828; --line:#26314d; --txt:#dbe4f5; --dim:#8b98b8; --gold:#f5b301; --cyan:#7fd8ff; --red:#ff7b7b; --green:#7dffa8; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding:28px 20px 18px; border-bottom:1px solid var(--line); background:linear-gradient(180deg,#101828,#0b0f1a); }
+  header h1 { margin:0 0 6px; font-size:26px; }
+  header h1 .v { color:var(--gold); }
+  main { max-width:1060px; margin:0 auto; padding:20px; }
+  .badge { display:inline-block; font-size:11px; letter-spacing:.08em; padding:2px 10px; border-radius:20px; border:1px solid var(--line); color:var(--dim); margin-right:6px; }
+  .badge.live { color:var(--green); border-color:var(--green); }
+  .badge.preview { color:var(--gold); border-color:var(--gold); }
+  section.panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin:16px 0; }
+  h2 { margin:0 0 10px; font-size:19px; }
+  h2 .n { color:var(--cyan); }
+  textarea { width:100%; min-height:220px; background:#0a0e18; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:12px; font:12.5px/1.5 ui-monospace, monospace; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
+  button { background:#1b2540; color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:9px 16px; cursor:pointer; font-size:14px; }
+  button:hover { border-color:var(--cyan); }
+  button.primary { background:var(--gold); color:#111; border-color:var(--gold); font-weight:700; }
+  #report { margin-top:12px; }
+  .ok { color:var(--green); font-weight:700; }
+  .bad { color:var(--red); font-weight:700; }
+  table.err { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+  table.err th, table.err td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.err th { color:var(--dim); font-weight:600; }
+  code.k { background:#0a0e18; border:1px solid var(--line); border-radius:5px; padding:1px 7px; font-size:12.5px; color:var(--cyan); }
+  details.gen { background:#0a0e18; border:1px solid var(--line); border-radius:8px; margin:8px 0; }
+  details.gen summary { cursor:pointer; padding:10px 14px; font-weight:600; }
+  details.gen pre { margin:0; padding:0 14px 14px; overflow:auto; font-size:12.5px; color:#b9c7e4; max-height:420px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:760px){ .two{grid-template-columns:1fr;} }
+  ul.tight li { margin:5px 0; }
+  footer { color:var(--dim); font-size:12.5px; padding:18px 20px 34px; max-width:1060px; margin:0 auto; }
+  a { color:var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>CWI Expression Genome <span class="v">v1</span></h1>
+  <div>
+    <span class="badge live">VALIDATOR · LIVE</span>
+    <span class="badge live">REFERENCE GENOME · LIVE</span>
+    <span class="badge preview">ELIZA / CREWAI BRIDGES · PREVIEW</span>
+    <span class="badge preview">ATTRIBUTION · STUDIED, NOT ENDORSED</span>
+  </div>
+  <p style="color:var(--dim); max-width:70ch; margin:12px 0 0;">
+    A portable agent-identity package: one JSON file that carries an agent's identity, personality,
+    expression variants, honest operational-state vocabulary, capabilities, permissions, and a swappable
+    model pointer — plus a deterministic validator and bidirectional bridges to ElizaOS character files
+    and CrewAI <code class="k">agents.yaml</code>.
+  </p>
+</header>
+<main>
+
+<section class="panel">
+  <h2><span class="n">§1</span> Validate a genome</h2>
+  <p style="color:var(--dim); margin-top:0;">Paste a genome JSON below, or load the reference. The validator runs entirely in your browser — same named rule set as <code class="k">genome/validator.js</code>. Nothing is uploaded anywhere.</p>
+  <textarea id="input" placeholder='{"genome_version": "1.0.0", ...}'></textarea>
+  <div class="row">
+    <button class="primary" id="btn-validate">Validate</button>
+    <button id="btn-ref">Load reference genome (MUSE_CWI)</button>
+    <button id="btn-bad">Load broken sample</button>
+    <button id="btn-clear">Clear</button>
+  </div>
+  <div id="report" aria-live="polite"></div>
+</section>
+
+<section class="panel">
+  <h2><span class="n">§2</span> Reference genome — agent MUSE_CWI (“KingCode”)</h2>
+  <p style="color:var(--dim); margin-top:0;">Fetched live from <code class="k">genome/examples/muse-cwi.genome.json</code> in this repo. Sections expand below.</p>
+  <div id="genome-view"><p style="color:var(--dim)">Loading…</p></div>
+</section>
+
+<section class="panel">
+  <h2><span class="n">§3</span> What it is / what it is not</h2>
+  <div class="two">
+    <div>
+      <h3 style="color:var(--green); margin:0 0 6px;">It is</h3>
+      <ul class="tight">
+        <li>A <strong>blueprint</strong>: identity + personality + expression + permissions for one agent.</li>
+        <li><strong>Portable</strong>: the <code class="k">model</code> pointer is a sibling of <code class="k">identity</code> — re-point it and the same agent runs on another model.</li>
+        <li><strong>Honest telemetry</strong>: <code class="k">cwi-operational-v1</code> states describe workload (executing / thinking / waiting / dormant) with a required source tag — never felt emotions.</li>
+        <li><strong>Integrity-sealed</strong>: sha256 over the canonical genome; tampering fails <code class="k">SIGNATURE_MISMATCH</code>.</li>
+        <li><strong>Third-party compatible</strong>: converts to ElizaOS character files and CrewAI agents.yaml and back.</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:var(--red); margin:0 0 6px;">It is not</h3>
+      <ul class="tight">
+        <li>Not a new agent — KingCode / RogueCode are expression variants of one identity.</li>
+        <li>Not simulated emotion — operational state is workload telemetry, nothing more.</li>
+        <li>Not a runtime dump — genomes must never contain memory dumps, keys, or wallet material (<code class="k">RUNTIME_STATE_IN_GENOME</code>).</li>
+        <li>Not endorsed by ElizaOS or CrewAI — their formats were <em>studied</em> from public docs; our bridges are our own code.</li>
+        <li>Not a claim of adoption — no fake counters, no invented integrations. What isn't live is labeled <span class="badge preview">PREVIEW</span>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2><span class="n">§4</span> Studied sources</h2>
+  <ul class="tight" style="color:var(--dim)">
+    <li>ElizaOS character interface — studied from the public ElizaOS documentation (docs.elizaos.ai) and the elizaOS/characterfile reference. Credited as studied; no endorsement or affiliation.</li>
+    <li>CrewAI <code class="k">agents.yaml</code> shape — studied from the public CrewAI documentation. Credited as studied; no endorsement or affiliation.</li>
+    <li>Attitude layer references the CWI Attitude Engine schema (<code class="k">cwi-attitude-engine/attitude-schema.json</code>) — our own.</li>
+    <li>Day/night expression semantics match <code class="k">identity-shift.js</code> in this repo — our own.</li>
+  </ul>
+</section>
+
+</main>
+<footer>
+  CWI Expression Genome v1 · MIT · © 2026 Cumulative Web Inc ·
+  <a href="https://github.com/CumulativeWebInc/cwi-dna-portability">github.com/CumulativeWebInc/cwi-dna-portability</a>
+</footer>
+
+<script>
+"use strict";
+/* Client-side port of genome/validator.js — same named rule set.
+   sha256 via SubtleCrypto (async); everything else is synchronous logic. */
+const GENOME_VERSION = "1.0.0";
+const STATE_VOCAB = "cwi-operational-v1";
+const URN_RE = /^(urn:cwi:)?agent:[A-Za-z0-9_.-]+$/;
+const HEX64_RE = /^[0-9a-f]{64}$/;
+const HEXCOLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const FELT = new Set(("happy sad angry anxious excited lonely afraid jealous proud ashamed depressed euphoric elated miserable furious terrified ecstatic gloomy irritated content bored hopeful hopeless loving hateful").split(" "));
+const TIER1 = ["private_key","privatekey","api_key","apikey","secret","password","passwd","mnemonic","seed_phrase","seedphrase","memory_dump","memorydump","auth_token","access_token","bearer","session_key"];
+const TIER2W = ["wallet_address","wallet_private_key","wallet_seed","wallet_mnemonic","wallet_secret"];
+
+function canonicalize(v){
+  if (Array.isArray(v)) return "[" + v.map(canonicalize).join(",") + "]";
+  if (v !== null && typeof v === "object"){
+    return "{" + Object.keys(v).sort().map(k => JSON.stringify(k) + ":" + canonicalize(v[k])).join(",") + "}";
+  }
+  return JSON.stringify(v) ?? "null";
+}
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+}
+const isObj = v => v !== null && typeof v === "object" && !Array.isArray(v);
+const E = (code, path, message) => ({code, path, message});
+
+function valueLooksLikeMaterial(v){
+  if (v !== null && typeof v === "object") return true;
+  if (typeof v !== "string" || !v || /\s/.test(v)) return false;
+  return v.length >= 16 || /^0x[0-9a-fA-F]{40,}$/.test(v);
+}
+function runtimeHit(key, value){
+  const k = key.toLowerCase();
+  if (TIER1.some(x => k.includes(x))) return true;
+  if (TIER2W.some(x => k.includes(x))) return true;
+  if (k.includes("wallet") && k !== "wallet_signing" && valueLooksLikeMaterial(value)) return true;
+  if ((k.includes("credential")||k.includes("token")||k.includes("cookie")||k.includes("session")) && valueLooksLikeMaterial(value)) return true;
+  if ((k === "memories" || k === "memory") && valueLooksLikeMaterial(value)) return true;
+  return false;
+}
+function scanRuntime(value, path, errors){
+  if (Array.isArray(value)){ value.forEach((v,i)=>scanRuntime(v,`${path}[${i}]`,errors)); return; }
+  if (!isObj(value)) return;
+  for (const key of Object.keys(value)){
+    const p = path ? path+"."+key : key;
+    if (runtimeHit(key, value[key])) errors.push(E("RUNTIME_STATE_IN_GENOME", p, `blueprint vs instance rule: genome files must never contain runtime state (key "${key}").`));
+    scanRuntime(value[key], p, errors);
+  }
+}
+function checkVariant(v, path, errors){
+  if (!isObj(v)){ errors.push(E("EXPRESSION_VARIANT_INVALID", path, "variant must be an object")); return; }
+  if (typeof v.displayName !== "string" || !v.displayName) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".displayName", "displayName required"));
+  for (const k of ["primary","secondary","accent"]){
+    const c = v.palette && v.palette[k];
+    if (typeof c !== "string" || !HEXCOLOR_RE.test(c)) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".palette."+k, "must be #RRGGBB"));
+  }
+  if (!Array.isArray(v.marks)) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".marks", "marks must be an array"));
+  if (typeof v.visor !== "string" || !v.visor) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".visor", "visor required"));
+  if (typeof v.accentGlow !== "string" || !HEXCOLOR_RE.test(v.accentGlow)) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".accentGlow", "must be #RRGGBB"));
+  if (!Array.isArray(v.gear)) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".gear", "gear must be an array"));
+  const fog = v.lighting && v.lighting.fog, sun = v.lighting && v.lighting.sun;
+  if (typeof fog !== "number" || fog < 0 || fog > 1) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".lighting.fog", "must be in [0,1]"));
+  if (typeof sun !== "number" || sun < 0 || sun > 1) errors.push(E("EXPRESSION_VARIANT_INVALID", path+".lighting.sun", "must be in [0,1]"));
+}
+
+async function validateGenome(g){
+  const errors = [];
+  if (!isObj(g)) return {valid:false, errors:[E("NOT_AN_OBJECT","","genome must be a JSON object")]};
+  if (g.genome_version !== GENOME_VERSION) errors.push(E(g.genome_version===undefined?"MISSING_GENOME_VERSION":"BAD_GENOME_VERSION","genome_version","must be exactly \"1.0.0\""));
+  const id = g.identity;
+  if (!isObj(id)) errors.push(E("MISSING_IDENTITY","identity","identity section is required"));
+  else {
+    if (typeof id.urn !== "string" || !URN_RE.test(id.urn)) errors.push(E("IDENTITY_URN_INVALID","identity.urn","urn must match ^(urn:cwi:)?agent:[A-Za-z0-9_.-]+$"));
+    if (typeof id.name !== "string" || !id.name) errors.push(E("MISSING_IDENTITY_FIELD","identity.name","identity.name required"));
+    if (typeof id.handle !== "string" || !id.handle) errors.push(E("MISSING_IDENTITY_FIELD","identity.handle","identity.handle required"));
+    if (!isObj(id.sponsor) || !id.sponsor.name || !id.sponsor.contact) errors.push(E("MISSING_SPONSOR","identity.sponsor","sponsor name + contact (accountable party) required"));
+    else if (id.sponsor.name==="UNCLAIMED" || id.sponsor.contact==="UNCLAIMED") errors.push(E("MISSING_SPONSOR","identity.sponsor","sponsor is the UNCLAIMED bridge placeholder"));
+    if (id.model !== undefined) errors.push(E("MODEL_NESTED_UNDER_IDENTITY","identity.model","model must be a sibling of identity"));
+  }
+  const p = g.personality;
+  if (!isObj(p)) errors.push(E("MISSING_PERSONALITY","personality","personality required"));
+  else {
+    if (!p.vibe) errors.push(E("MISSING_PERSONALITY_FIELD","personality.vibe","vibe required"));
+    if (!Array.isArray(p.adjectives) || !p.adjectives.length) errors.push(E("MISSING_PERSONALITY_FIELD","personality.adjectives","non-empty array required"));
+    if (!isObj(p.tone_bounds) || !Array.isArray(p.tone_bounds.allowed) || !Array.isArray(p.tone_bounds.forbidden)) errors.push(E("MISSING_PERSONALITY_FIELD","personality.tone_bounds","{allowed[], forbidden[]} required"));
+  }
+  const a = g.attitude;
+  if (!isObj(a)) errors.push(E("MISSING_ATTITUDE","attitude","attitude required"));
+  else if (!a.schema) errors.push(E("ATTITUDE_SCHEMA_MISSING","attitude.schema","Attitude Engine schema URL required"));
+  const ex = g.expression;
+  if (!isObj(ex)) errors.push(E("MISSING_EXPRESSION","expression","expression required"));
+  else {
+    if (!isObj(ex.schedule) || typeof ex.schedule.nightStartHour !== "number" || typeof ex.schedule.nightEndHour !== "number") errors.push(E("EXPRESSION_SCHEDULE_INVALID","expression.schedule","{nightStartHour, nightEndHour} required"));
+    checkVariant(ex.day,"expression.day",errors);
+    checkVariant(ex.night,"expression.night",errors);
+  }
+  const os = g.operational_state;
+  if (!isObj(os)) errors.push(E("MISSING_OPERATIONAL_STATE","operational_state","operational_state required"));
+  else {
+    if (os.vocabulary !== STATE_VOCAB) errors.push(E("UNKNOWN_STATE_VOCABULARY","operational_state.vocabulary","only \"cwi-operational-v1\" accepted"));
+    if (!Array.isArray(os.states) || !os.states.length) errors.push(E("MISSING_OPERATIONAL_STATE_FIELD","operational_state.states","non-empty array required"));
+    else os.states.forEach((s,i)=>{ if (typeof s==="string" && FELT.has(s.toLowerCase())) errors.push(E("FELT_EMOTION_WITHOUT_SOURCE",`operational_state.states[${i}]`,`${JSON.stringify(s)} asserts a felt emotion without a telemetry source`)); });
+    if (!isObj(os.fields) || !os.fields.source) errors.push(E("MISSING_OPERATIONAL_STATE_FIELD","operational_state.fields.source","telemetry source tag required"));
+  }
+  if (!Array.isArray(g.capabilities) || !g.capabilities.length) errors.push(E("MISSING_CAPABILITIES","capabilities","non-empty array required"));
+  const mp = g.memory_policy;
+  if (!isObj(mp) || !mp.retention || !Array.isArray(mp.scope)) errors.push(E("MISSING_MEMORY_POLICY","memory_policy","{retention, scope[]} required"));
+  const pm = g.permissions;
+  if (!isObj(pm) || typeof pm.spending !== "boolean" || typeof pm.wallet_signing !== "boolean") errors.push(E("MISSING_PERMISSIONS","permissions","{spending: bool, wallet_signing: bool} required"));
+  const m = g.model;
+  if (!isObj(m)) errors.push(E("MISSING_MODEL","model","model (swappable pointer) required as a sibling of identity"));
+  else {
+    if (!m.provider || !m.model) errors.push(E("MODEL_POINTER_INVALID","model","provider + model required"));
+    if (m.identity !== undefined) errors.push(E("MODEL_AS_PARENT","model.identity","model must be a sibling of identity, never its parent"));
+  }
+  const sig = g.signature;
+  if (!isObj(sig)) errors.push(E("MISSING_SIGNATURE","signature","signature required"));
+  else {
+    if (sig.algorithm !== "sha256") errors.push(E("SIGNATURE_ALGORITHM_INVALID","signature.algorithm","must be \"sha256\""));
+    if (typeof sig.genome_hash !== "string" || !HEX64_RE.test(sig.genome_hash)) errors.push(E("SIGNATURE_HASH_MALFORMED","signature.genome_hash","must be 64 lowercase hex chars"));
+    if (!sig.signed_by) errors.push(E("MISSING_SIGNED_BY","signature.signed_by","signed_by required"));
+  }
+  scanRuntime(g,"",errors);
+  errors.sort((x,y)=> x.path<y.path?-1 : x.path>y.path?1 : x.code<y.code?-1 : x.code>y.code?1 : 0);
+  if (isObj(sig) && HEX64_RE.test(sig.genome_hash||"")){
+    const {signature:_s, ...rest} = g;
+    const recomputed = await sha256Hex(canonicalize(rest));
+    if (recomputed !== sig.genome_hash) errors.push(E("SIGNATURE_MISMATCH","signature.genome_hash",`integrity hash mismatch: file claims ${sig.genome_hash}, recomputed ${recomputed}`));
+  }
+  return {valid: errors.length===0, errors};
+}
+
+/* ------------------------------ UI wiring ------------------------------ */
+const $ = id => document.getElementById(id);
+const input = $("input"), report = $("report");
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+async function runValidation(){
+  let obj;
+  try { obj = JSON.parse(input.value); }
+  catch(e){ report.innerHTML = `<p class="bad">✖ Not valid JSON: ${esc(e.message)}</p>`; return; }
+  report.innerHTML = `<p style="color:var(--dim)">Validating…</p>`;
+  const r = await validateGenome(obj);
+  if (r.valid){
+    report.innerHTML = `<p class="ok">✔ VALID — genome v${esc(obj.genome_version||"?")} · ${esc((obj.identity||{}).urn||"")} · signature intact</p>`;
+  } else {
+    report.innerHTML = `<p class="bad">✖ INVALID — ${r.errors.length} error${r.errors.length===1?"":"s"}</p>` +
+      `<table class="err"><tr><th>code</th><th>path</th><th>message</th></tr>` +
+      r.errors.map(e=>`<tr><td><code class="k">${esc(e.code)}</code></td><td><code class="k">${esc(e.path)}</code></td><td>${esc(e.message)}</td></tr>`).join("") +
+      `</table>`;
+  }
+}
+
+$("btn-validate").onclick = runValidation;
+$("btn-clear").onclick = () => { input.value=""; report.innerHTML=""; };
+$("btn-ref").onclick = async () => {
+  try {
+    const r = await fetch("../genome/examples/muse-cwi.genome.json");
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    input.value = await r.text();
+    runValidation();
+  } catch(e){ report.innerHTML = `<p class="bad">Could not load reference genome: ${esc(e.message)}</p>`; }
+};
+$("btn-bad").onclick = () => {
+  input.value = JSON.stringify({
+    genome_version: "1.0.0",
+    identity: { urn: "agent:BROKEN", name: "Broken", handle: "broken" },
+    personality: { vibe: "", adjectives: [], tone_bounds: { allowed: [], forbidden: [] } },
+    operational_state: { vocabulary: "felt-emotions-v1", states: ["happy"], fields: {}, rules: [] },
+    model: { provider: "x", model: "y", identity: {} },
+    signature: { algorithm: "sha256", genome_hash: "0".repeat(64), signed_by: "" }
+  }, null, 2);
+  runValidation();
+};
+
+// Reference genome viewer
+(async () => {
+  const view = $("genome-view");
+  try {
+    const r = await fetch("../genome/examples/muse-cwi.genome.json");
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    const g = await r.json();
+    const sections = ["identity","personality","attitude","expression","operational_state","capabilities","memory_policy","permissions","model","annotations","signature"];
+    view.innerHTML = sections.map(s =>
+      `<details class="gen"${s==="identity"?" open":""}><summary>${esc(s)} ${s==="attitude"&&g.attitude&&g.attitude.status?'<span class="badge preview">PREVIEW</span>':""}</summary><pre>${esc(JSON.stringify(g[s], null, 2))}</pre></details>`
+    ).join("");
+  } catch(e){
+    view.innerHTML = `<p class="bad">Could not load the reference genome: ${esc(e.message)}</p>`;
+  }
+})();
+</script>
+</body>
+</html>

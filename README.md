@@ -35,6 +35,26 @@ node identity-shift.js agent:MUSE_CWI
 node --test test/run-tests.js   # 25 tests, all green
 ```
 
+## Expression Genome (E1) — portable agent-identity package
+
+The genome is the portable form of an agent's identity: one JSON file that carries identity, personality, attitude (referencing the Attitude Engine schema), day/night expression variants, an honest operational-state vocabulary, capabilities, memory policy, permissions, a **swappable model pointer** (sibling of identity, never its parent — re-point it and the same agent runs on another model), and an integrity signature. 20/20 genome tests green; 45/45 with the harness suite.
+
+What it is: a blueprint for moving one agent across models and runtimes — JSON Schema (`genome/cwi-expression-genome-v1.schema.json`), a deterministic stdlib-only validator (`genome/validator.js`), bidirectional bridges to ElizaOS character files and CrewAI `agents.yaml` (`genome/bridges/`), a CLI (`genome/cli.js`), and the real reference genome for MUSE_CWI / KingCode (`genome/examples/muse-cwi.genome.json`, built from `identity-shift.js` — never hand-copied).
+
+What it is **not**: not a new agent (KingCode/RogueCode are expression variants of one identity), not simulated emotion (`cwi-operational-v1` states are workload telemetry with a required source tag — felt-emotion terms are rejected), not a runtime dump (genomes must never contain memory dumps, keys, or wallet material). The ElizaOS character interface and the CrewAI `agents.yaml` shape were **studied** from their public docs — credited as studied, never as endorsement or affiliation. No fake counters, no invented adoption: anything not yet live is labeled PREVIEW.
+
+```bash
+node genome/cli.js validate genome/examples/muse-cwi.genome.json
+node genome/cli.js hash genome/examples/muse-cwi.genome.json
+node genome/cli.js eliza-export genome/examples/muse-cwi.genome.json
+node genome/cli.js crewai-export genome/examples/muse-cwi.genome.json
+node --test genome/test/run-tests.js   # 20 tests, all green
+```
+
+Named result: a third-party-compatible genome file validates against the schema **and** converts losslessly to an ElizaOS character file (measured by green CI + the live validator below). Kill rule: if zero inbound adoption/integration signals by 2026-10-16, E1 goes maintenance-only and the line pivots to the Expression SDK (E2).
+
+Live: validator + reference genome viewer → https://cumulativewebinc.github.io/cwi-dna-portability/
+
 ## Honest state (read this before citing numbers)
 
 | Run | Generator | vocab overlap | bounds adherence | tone consistency |

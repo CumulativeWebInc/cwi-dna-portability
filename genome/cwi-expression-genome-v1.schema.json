@@ -1,0 +1,488 @@
+{
+  "$defs": {
+    "expressionVariant": {
+      "additionalProperties": false,
+      "description": "One expression variant. Mirrors the identity-shift.js spec shape.",
+      "properties": {
+        "accentGlow": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "displayName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "gear": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lighting": {
+          "additionalProperties": false,
+          "properties": {
+            "fog": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "sun": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "fog",
+            "sun"
+          ],
+          "type": "object"
+        },
+        "marks": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "palette": {
+          "additionalProperties": false,
+          "properties": {
+            "accent": {
+              "$ref": "#/$defs/hexColor"
+            },
+            "primary": {
+              "$ref": "#/$defs/hexColor"
+            },
+            "secondary": {
+              "$ref": "#/$defs/hexColor"
+            }
+          },
+          "required": [
+            "primary",
+            "secondary",
+            "accent"
+          ],
+          "type": "object"
+        },
+        "visor": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "displayName",
+        "palette",
+        "marks",
+        "visor",
+        "accentGlow",
+        "gear",
+        "lighting"
+      ],
+      "type": "object"
+    },
+    "hexColor": {
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://cumulativewebinc.github.io/cwi-dna-portability/genome/cwi-expression-genome-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Portable agent-identity package. A blueprint, never an instance: the file must never contain runtime state (no memory dumps, no keys, no wallet material). The `model` pointer is a sibling of `identity`, never its parent: re-point it and the same agent runs on another model.",
+  "properties": {
+    "annotations": {
+      "description": "Optional bridge metadata (eliza/crewai mappings, provenance). Blueprint annotations only \u2014 subject to the same no-runtime-state rule.",
+      "type": "object"
+    },
+    "attitude": {
+      "additionalProperties": false,
+      "description": "Reference to the CWI Attitude Engine schema, with an optional embedded profile.",
+      "properties": {
+        "profile": {
+          "description": "Embedded attitude profile (ten canonical dimensions), or null when not yet authored.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "schema": {
+          "description": "URL of the Attitude Engine schema this genome's attitude layer conforms to.",
+          "format": "uri",
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema"
+      ],
+      "type": "object"
+    },
+    "capabilities": {
+      "description": "WHAT it may attempt. Each capability is permissions-shaped.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "requires_approval": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "expression": {
+      "additionalProperties": false,
+      "description": "Day/night expression variants. Same spec shape as identity-shift.js: displayName, palette, marks, visor, accentGlow, gear, lighting. Expression is presentation \u2014 never a new agent, never simulated emotion.",
+      "properties": {
+        "day": {
+          "$ref": "#/$defs/expressionVariant"
+        },
+        "night": {
+          "$ref": "#/$defs/expressionVariant"
+        },
+        "schedule": {
+          "additionalProperties": true,
+          "properties": {
+            "nightEndHour": {
+              "maximum": 23,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "nightStartHour": {
+              "maximum": 23,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "nightStartHour",
+            "nightEndHour"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "schedule",
+        "day",
+        "night"
+      ],
+      "type": "object"
+    },
+    "genome_version": {
+      "const": "1.0.0",
+      "description": "Genome format version. Validators reject anything else."
+    },
+    "identity": {
+      "additionalProperties": false,
+      "description": "WHO this is. Stable identifiers only. The accountable sponsor is required.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "handle": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "sponsor": {
+          "additionalProperties": true,
+          "description": "Accountable party. Required: a genome without a sponsor is an orphan and does not validate.",
+          "properties": {
+            "contact": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "contact"
+          ],
+          "type": "object"
+        },
+        "urn": {
+          "description": "Stable identity URN. \"agent:\" is the identity-shift form (e.g. agent:MUSE_CWI); \"urn:cwi:agent:\" is the fully-qualified form. Converters must preserve it byte-for-byte (output URN == input URN, always).",
+          "pattern": "^(urn:cwi:)?agent:[A-Za-z0-9_.-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "urn",
+        "name",
+        "handle",
+        "sponsor"
+      ],
+      "type": "object"
+    },
+    "memory_policy": {
+      "additionalProperties": false,
+      "description": "How memory is kept. Policy only \u2014 never a memory dump.",
+      "properties": {
+        "notes": {
+          "type": "string"
+        },
+        "retention": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "scope": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "write_rule": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "retention",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "model": {
+      "additionalProperties": true,
+      "description": "Swappable provider pointer. MUST be a sibling of identity, never its parent: any consumer re-points it and gets the same agent.",
+      "properties": {
+        "base_url": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "model_version": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "temperature": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "provider",
+        "model"
+      ],
+      "type": "object"
+    },
+    "operational_state": {
+      "additionalProperties": false,
+      "description": "Honest telemetry vocabulary. States describe workload/availability only \u2014 never human emotions. Every emitted state must carry a source tag naming the telemetry origin.",
+      "properties": {
+        "fields": {
+          "additionalProperties": true,
+          "description": "Declared telemetry fields and their meaning.",
+          "properties": {
+            "confidence": {
+              "type": "string"
+            },
+            "interaction_mode": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "task_pressure": {
+              "type": "string"
+            },
+            "vocabulary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "confidence",
+            "task_pressure",
+            "interaction_mode",
+            "source",
+            "vocabulary"
+          ],
+          "type": "object"
+        },
+        "rules": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "states": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "vocabulary": {
+          "description": "Vocabulary identifier. Only cwi-operational-v1 is accepted; vocabularies that assert felt emotions without a telemetry source are rejected.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vocabulary",
+        "states",
+        "fields",
+        "rules"
+      ],
+      "type": "object"
+    },
+    "permissions": {
+      "description": "Hard permission flags. Standing CWI carve-outs: no spending, no wallet signing.",
+      "properties": {
+        "spending": {
+          "type": "boolean"
+        },
+        "wallet_signing": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "spending",
+        "wallet_signing"
+      ],
+      "type": "object"
+    },
+    "personality": {
+      "additionalProperties": false,
+      "description": "STABLE TRAITS. Slow-moving dispositions of the identity \u2014 distinct from moment-to-moment attitude and from operational state.",
+      "properties": {
+        "adjectives": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "tone_bounds": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "forbidden": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "allowed",
+            "forbidden"
+          ],
+          "type": "object"
+        },
+        "vibe": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "vibe",
+        "adjectives",
+        "tone_bounds"
+      ],
+      "type": "object"
+    },
+    "signature": {
+      "additionalProperties": false,
+      "description": "Integrity hash over the canonical genome (signature section excluded). An integrity seal, not a cryptographic identity signature unless anchor is set.",
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "anchor": {
+          "description": "Optional external anchor reference (e.g. a NEEDLE DROP seal or chain tx). Null when unanchored.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "genome_hash": {
+          "description": "sha256 hex of the canonical JSON (keys sorted recursively, no whitespace) of the genome with the signature section removed.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "signed_by": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "algorithm",
+        "genome_hash",
+        "signed_by"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "genome_version",
+    "identity",
+    "personality",
+    "attitude",
+    "expression",
+    "operational_state",
+    "capabilities",
+    "memory_policy",
+    "permissions",
+    "model",
+    "signature"
+  ],
+  "title": "CWI Expression Genome v1",
+  "type": "object"
+}
