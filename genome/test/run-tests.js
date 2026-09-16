@@ -251,3 +251,95 @@ test("cli hash output matches validator hash", async () => {
   assert.equal(cli.genomeHash(g), expected);
   assert.equal(expected, g.signature.genome_hash);
 });
+
+/* ---- Department genomes (minted 2026-09-16) ---- */
+
+const DEPARTMENT_FILES = [
+  ["agent:CWI_AandR", "cwi-aandr.genome.json", "Needle"],
+  ["agent:CWI_Marketing", "cwi-marketing.genome.json", "Marquee"],
+  ["agent:CWI_Sync", "cwi-sync.genome.json", "Seal"],
+  ["agent:CWI_Radio", "cwi-radio.genome.json", "Dial"],
+  ["agent:CWI_Press", "cwi-press.genome.json", "Dateline"],
+  ["agent:CWI_Studio", "cwi-studio.genome.json", "Fader"],
+  ["agent:CWI_Data", "cwi-data.genome.json", "Ledger"],
+  ["agent:CWI_Affairs", "cwi-affairs.genome.json", "Charter"],
+  ["agent:CWI_Results", "cwi-results.genome.json", "Receipt"],
+];
+
+function loadDepartment(file) {
+  return JSON.parse(readFileSync(join(HERE, "..", "examples", file), "utf8"));
+}
+
+test("all nine department genomes validate clean", () => {
+  for (const [urn, file] of DEPARTMENT_FILES) {
+    const g = loadDepartment(file);
+    const r = validateGenome(g);
+    assert.equal(r.valid, true, `${file} must validate clean: ${JSON.stringify(r.errors)}`);
+    assert.equal(g.identity.urn, urn, `${file} URN must be ${urn}`);
+  }
+});
+
+test("all ten example genomes (chief + departments) validate clean", () => {
+  const files = ["muse-cwi.genome.json", ...DEPARTMENT_FILES.map(([, f]) => f)];
+  assert.equal(files.length, 10);
+  const urns = new Set();
+  for (const file of files) {
+    const g = JSON.parse(readFileSync(join(HERE, "..", "examples", file), "utf8"));
+    assert.equal(validateGenome(g).valid, true, file);
+    assert.ok(!urns.has(g.identity.urn), `duplicate URN ${g.identity.urn}`);
+    urns.add(g.identity.urn);
+  }
+  assert.equal(urns.size, 10);
+});
+
+test("department genome expressions match identity-shift.js byte-for-byte", () => {
+  for (const [urn, file] of DEPARTMENT_FILES) {
+    const g = loadDepartment(file);
+    assert.deepEqual(g.expression.day, shift.AGENTS[urn].day, `${file} day`);
+    assert.deepEqual(g.expression.night, shift.AGENTS[urn].night, `${file} night`);
+    assert.equal(g.expression.schedule.nightStartHour, shift.SHIFT_SCHEDULE.nightStartHour, `${file} schedule`);
+  }
+});
+
+test("department genomes carry truth-rule tone bounds", () => {
+  for (const [, file] of DEPARTMENT_FILES) {
+    const g = loadDepartment(file);
+    const forbidden = g.personality.tone_bounds.forbidden;
+    assert.ok(forbidden.includes("simulated-emotion"), `${file} must forbid simulated-emotion`);
+    assert.ok(forbidden.includes("invented-metrics"), `${file} must forbid invented-metrics`);
+  }
+});
+
+test("department genomes carry PREVIEW attitude and honest operational state", () => {
+  for (const [, file] of DEPARTMENT_FILES) {
+    const g = loadDepartment(file);
+    assert.equal(g.attitude.profile, null, `${file} attitude.profile must be null (PREVIEW)`);
+    assert.ok(String(g.attitude.status).startsWith("PREVIEW"), `${file} attitude.status must be PREVIEW`);
+    assert.equal(g.operational_state.vocabulary, "cwi-operational-v1", file);
+    assert.ok(!g.identity.sponsor || g.identity.sponsor.name === "Cumulative Web Inc", `${file} sponsor`);
+  }
+});
+
+test("department genome signatures verify (integrity hash matches content)", () => {
+  for (const [, file] of DEPARTMENT_FILES) {
+    const g = loadDepartment(file);
+    assert.equal(genomeHash(g), g.signature.genome_hash, `${file} signature mismatch`);
+    assert.equal(g.signature.signed_by, "Cumulative Web Inc", file);
+  }
+});
+
+test("docs mirrors are byte-identical to genome/examples copies", () => {
+  const { readFileSync: rfs } = { readFileSync };
+  for (const [, file] of DEPARTMENT_FILES) {
+    const a = rfs(join(HERE, "..", "examples", file), "utf8");
+    const b = rfs(join(HERE, "..", "..", "docs", "genome", "examples", file), "utf8");
+    assert.equal(a, b, `${file} docs mirror must be byte-identical`);
+  }
+});
+
+test("department genome names match the roster", () => {
+  for (const [, file, name] of DEPARTMENT_FILES) {
+    const g = loadDepartment(file);
+    assert.equal(g.identity.name, name, `${file} name must be ${name}`);
+  }
+});

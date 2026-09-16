@@ -72,8 +72,22 @@
 </section>
 
 <section class="panel">
-  <h2><span class="n">§2</span> Reference genome — agent MUSE_CWI (“KingCode”)</h2>
-  <p style="color:var(--dim); margin-top:0;">Fetched live from <code class="k">genome/examples/muse-cwi.genome.json</code> in this repo. Sections expand below.</p>
+  <h2><span class="n">§2</span> Genome gallery — all ten CWI agent identities</h2>
+  <p style="color:var(--dim); margin-top:0;">Fetched live from <code class="k">genome/examples/*.genome.json</code> in this repo. Pick an identity; sections expand below.</p>
+  <div class="row">
+    <select id="genome-select" aria-label="Choose a genome">
+      <option value="genome/examples/muse-cwi.genome.json">MUSE_CWI — KingCode (chief)</option>
+      <option value="genome/examples/cwi-aandr.genome.json">CWI_AandR — Needle (A&amp;R)</option>
+      <option value="genome/examples/cwi-marketing.genome.json">CWI_Marketing — Marquee (Marketing &amp; Social)</option>
+      <option value="genome/examples/cwi-sync.genome.json">CWI_Sync — Seal (Sync &amp; Licensing)</option>
+      <option value="genome/examples/cwi-radio.genome.json">CWI_Radio — Dial (Radio &amp; Playlists)</option>
+      <option value="genome/examples/cwi-press.genome.json">CWI_Press — Dateline (Press &amp; PR)</option>
+      <option value="genome/examples/cwi-studio.genome.json">CWI_Studio — Fader (Content Studio)</option>
+      <option value="genome/examples/cwi-data.genome.json">CWI_Data — Ledger (Data &amp; Analytics)</option>
+      <option value="genome/examples/cwi-affairs.genome.json">CWI_Affairs — Charter (Business Affairs)</option>
+      <option value="genome/examples/cwi-results.genome.json">CWI_Results — Receipt (Results)</option>
+    </select>
+  </div>
   <div id="genome-view"><p style="color:var(--dim)">Loading…</p></div>
 </section>
 
@@ -296,21 +310,25 @@ $("btn-bad").onclick = () => {
   runValidation();
 };
 
-// Reference genome viewer
-(async () => {
+// Genome gallery viewer
+async function loadGenome(path) {
   const view = $("genome-view");
+  view.innerHTML = `<p style="color:var(--dim)">Loading…</p>`;
   try {
-    const r = await fetch("genome/examples/muse-cwi.genome.json");
+    const r = await fetch(path);
     if (!r.ok) throw new Error("HTTP "+r.status);
     const g = await r.json();
     const sections = ["identity","personality","attitude","expression","operational_state","capabilities","memory_policy","permissions","model","annotations","signature"];
-    view.innerHTML = sections.map(s =>
+    view.innerHTML = `<p style="color:var(--dim)">urn <code class="k">${esc(g.identity.urn)}</code> · sha256 <code class="k">${esc(g.signature.genome_hash.slice(0,16))}…</code></p>` +
+      sections.map(s =>
       `<details class="gen"${s==="identity"?" open":""}><summary>${esc(s)} ${s==="attitude"&&g.attitude&&g.attitude.status?'<span class="badge preview">PREVIEW</span>':""}</summary><pre>${esc(JSON.stringify(g[s], null, 2))}</pre></details>`
     ).join("");
   } catch(e){
-    view.innerHTML = `<p class="bad">Could not load the reference genome: ${esc(e.message)}</p>`;
+    view.innerHTML = `<p class="bad">Could not load the genome: ${esc(e.message)}</p>`;
   }
-})();
+}
+$("genome-select").onchange = (e) => loadGenome(e.target.value);
+loadGenome($("genome-select").value);
 </script>
 </body>
 </html>
