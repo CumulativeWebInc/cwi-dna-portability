@@ -1,0 +1,344 @@
+/*
+ * identity-shift.js — portable day/night identity expression shift
+ *
+ * First-class mechanism for the CWI identity software: one agent identity,
+ * two expression variants (day / night), resolved deterministically from
+ * local time plus an explicit manual override. Every product (Agent Stage,
+ * avatar, gear, downstream integrations) can consume this module instead of
+ * re-implementing the shift.
+ *
+ * +------------------------------------------------------------------------+
+ * | WHAT THIS IS: a portable expression spec + resolver. One ledger agent   |
+ * | (agent:MUSE_CWI) has two named expressions — KingCode by day, RogueCode |
+ * | by night. Every other agent has a day and a night PALETTE expression    |
+ * | of the same identity.                                                  |
+ * | WHAT THIS IS NOT: not a new agent, not simulated emotion, not an       |
+ * | endorsement by anyone. The operational states (executing / thinking /   |
+ * | waiting / dormant) remain separate from expression.                    |
+ * +------------------------------------------------------------------------+
+ *
+ * Usage:
+ *   const { resolveShift } = require("./identity-shift.js");
+ *   resolveShift("agent:MUSE_CWI", { at: new Date(), override: "auto" });
+ *   // -> { urn, shift: "day"|"night", override, expression: {...} }
+ *
+ * Zero dependencies. Importable for tests (entry-point guard at bottom).
+ */
+"use strict";
+
+/* ------------------------------------------------------------------ */
+/* Schedule + override vocabulary (matches the Agent Stage semantics)  */
+/* ------------------------------------------------------------------ */
+const SHIFT_SCHEDULE = {
+  // Night runs 18:00 (inclusive) to 06:00 (exclusive), viewer-local time.
+  nightStartHour: 18,
+  nightEndHour: 6,
+};
+
+const OVERRIDE = {
+  AUTO: "auto", // resolve from local clock (default)
+  DAY: "force-day", // manual override: hold the day expression
+  NIGHT: "force-night", // manual override: hold the night expression
+};
+
+/* ------------------------------------------------------------------ */
+/* Agent shift specs — one ledger agent, two expression variants each.  */
+/* Only agent:MUSE_CWI has named alter-ego expressions (KingCode /      */
+/* RogueCode). The nine departments get simple day/night palette        */
+/* expressions of their own identity — no invented alter egos.         */
+/* ------------------------------------------------------------------ */
+const AGENTS = {
+  "agent:MUSE_CWI": {
+    day: {
+      displayName: "KingCode",
+      palette: { primary: "#1E4FD8", secondary: "#F5B301", accent: "#FFD76A" },
+      marks: ["crown-gold"],
+      visor: "bright-blue",
+      accentGlow: "#FFD76A",
+      gear: ["crown", "cape", "emblem-{}-gold"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "RogueCode",
+      palette: { primary: "#0B1026", secondary: "#1B2440", accent: "#7FD8FF" },
+      marks: ["crescent-moon"],
+      visor: "pale-blue",
+      accentGlow: "#7FD8FF",
+      gear: ["hood", "emblem-{}-cyan"],
+      lighting: { fog: 0.35, sun: 0.25 },
+    },
+  },
+  "agent:CWI_AandR": {
+    day: {
+      displayName: "CWI A&R",
+      palette: { primary: "#F59E0B", secondary: "#78350F", accent: "#FCD34D" },
+      marks: ["compass"],
+      visor: "bright-amber",
+      accentGlow: "#FCD34D",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI A&R",
+      palette: { primary: "#3A1F0B", secondary: "#1C1006", accent: "#B45309" },
+      marks: ["compass-dim"],
+      visor: "dim-amber",
+      accentGlow: "#B45309",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Marketing": {
+    day: {
+      displayName: "CWI Marketing",
+      palette: { primary: "#EC4899", secondary: "#831843", accent: "#F9A8D4" },
+      marks: ["megaphone"],
+      visor: "bright-magenta",
+      accentGlow: "#F9A8D4",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Marketing",
+      palette: { primary: "#3B0F1E", secondary: "#1F0811", accent: "#9D174D" },
+      marks: ["megaphone-dim"],
+      visor: "dim-magenta",
+      accentGlow: "#9D174D",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Sync": {
+    day: {
+      displayName: "CWI Sync",
+      palette: { primary: "#14B8A6", secondary: "#134E4A", accent: "#5EEAD4" },
+      marks: ["waveform"],
+      visor: "bright-teal",
+      accentGlow: "#5EEAD4",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Sync",
+      palette: { primary: "#07332E", secondary: "#041B19", accent: "#0F766E" },
+      marks: ["waveform-dim"],
+      visor: "dim-teal",
+      accentGlow: "#0F766E",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Radio": {
+    day: {
+      displayName: "CWI Radio",
+      palette: { primary: "#8B5CF6", secondary: "#4C1D95", accent: "#C4B5FD" },
+      marks: ["antenna"],
+      visor: "bright-violet",
+      accentGlow: "#C4B5FD",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Radio",
+      palette: { primary: "#1E1746", secondary: "#100D27", accent: "#5B21B6" },
+      marks: ["antenna-dim"],
+      visor: "dim-violet",
+      accentGlow: "#5B21B6",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Press": {
+    day: {
+      displayName: "CWI Press",
+      palette: { primary: "#C7CDD6", secondary: "#6B7280", accent: "#F3F4F6" },
+      marks: ["press-badge"],
+      visor: "bright-silver",
+      accentGlow: "#F3F4F6",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Press",
+      palette: { primary: "#23272E", secondary: "#14161A", accent: "#4B5563" },
+      marks: ["press-badge-dim"],
+      visor: "dim-silver",
+      accentGlow: "#4B5563",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Studio": {
+    day: {
+      displayName: "CWI Studio",
+      palette: { primary: "#F97316", secondary: "#7C2D12", accent: "#FDBA74" },
+      marks: ["fader"],
+      visor: "bright-orange",
+      accentGlow: "#FDBA74",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Studio",
+      palette: { primary: "#3A1E0C", secondary: "#1E1006", accent: "#9A3412" },
+      marks: ["fader-dim"],
+      visor: "dim-orange",
+      accentGlow: "#9A3412",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Data": {
+    day: {
+      displayName: "CWI Data",
+      palette: { primary: "#06B6D4", secondary: "#164E63", accent: "#67E8F9" },
+      marks: ["graph"],
+      visor: "bright-cyan",
+      accentGlow: "#67E8F9",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Data",
+      palette: { primary: "#0A2530", secondary: "#061419", accent: "#0E7490" },
+      marks: ["graph-dim"],
+      visor: "dim-cyan",
+      accentGlow: "#0E7490",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Affairs": {
+    day: {
+      displayName: "CWI Affairs",
+      palette: { primary: "#10B981", secondary: "#065F46", accent: "#6EE7B7" },
+      marks: ["scale"],
+      visor: "bright-emerald",
+      accentGlow: "#6EE7B7",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Affairs",
+      palette: { primary: "#0B2E22", secondary: "#061812", accent: "#047857" },
+      marks: ["scale-dim"],
+      visor: "dim-emerald",
+      accentGlow: "#047857",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+  "agent:CWI_Results": {
+    day: {
+      displayName: "CWI Results",
+      palette: { primary: "#EAB308", secondary: "#713F12", accent: "#FDE047" },
+      marks: ["trophy"],
+      visor: "bright-gold",
+      accentGlow: "#FDE047",
+      gear: ["badge"],
+      lighting: { fog: 0.12, sun: 1.0 },
+    },
+    night: {
+      displayName: "CWI Results",
+      palette: { primary: "#33270A", secondary: "#1A1305", accent: "#854D0E" },
+      marks: ["trophy-dim"],
+      visor: "dim-gold",
+      accentGlow: "#854D0E",
+      gear: ["badge"],
+      lighting: { fog: 0.32, sun: 0.3 },
+    },
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/* Expression validation — an expression is well-formed before it ships */
+/* ------------------------------------------------------------------ */
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+function validateExpression(expr) {
+  const problems = [];
+  if (!expr || typeof expr !== "object") return ["not an object"];
+  if (typeof expr.displayName !== "string" || !expr.displayName)
+    problems.push("displayName missing");
+  for (const key of ["primary", "secondary", "accent"]) {
+    const c = expr.palette && expr.palette[key];
+    if (typeof c !== "string" || !HEX_COLOR.test(c))
+      problems.push(`palette.${key} not a #RRGGBB hex color: ${c}`);
+  }
+  if (!Array.isArray(expr.marks)) problems.push("marks not an array");
+  if (typeof expr.visor !== "string" || !expr.visor)
+    problems.push("visor missing");
+  if (typeof expr.accentGlow !== "string" || !HEX_COLOR.test(expr.accentGlow))
+    problems.push(`accentGlow not a #RRGGBB hex color: ${expr.accentGlow}`);
+  if (!Array.isArray(expr.gear)) problems.push("gear not an array");
+  const fog = expr.lighting && expr.lighting.fog;
+  const sun = expr.lighting && expr.lighting.sun;
+  if (typeof fog !== "number" || fog < 0 || fog > 1)
+    problems.push(`lighting.fog out of [0,1]: ${fog}`);
+  if (typeof sun !== "number" || sun < 0 || sun > 1)
+    problems.push(`lighting.sun out of [0,1]: ${sun}`);
+  return problems;
+}
+
+/* ------------------------------------------------------------------ */
+/* Resolver — deterministic: (agent URN, timestamp, override) -> variant */
+/* ------------------------------------------------------------------ */
+function isNightHour(hour) {
+  return (
+    hour >= SHIFT_SCHEDULE.nightStartHour || hour < SHIFT_SCHEDULE.nightEndHour
+  );
+}
+
+function shiftAt(at) {
+  const d = at instanceof Date ? at : new Date(at == null ? Date.now() : at);
+  if (Number.isNaN(d.getTime())) throw new Error("identity-shift: invalid timestamp");
+  return isNightHour(d.getHours()) ? "night" : "day";
+}
+
+function resolveShift(identity, options) {
+  const opts = options || {};
+  const urn =
+    typeof identity === "string" ? identity : identity && identity.urn;
+  const spec = AGENTS[urn];
+  if (!spec) throw new Error(`identity-shift: unknown agent urn ${urn}`);
+  const override = opts.override || OVERRIDE.AUTO;
+  let shift;
+  if (override === OVERRIDE.NIGHT) shift = "night";
+  else if (override === OVERRIDE.DAY) shift = "day";
+  else if (override === OVERRIDE.AUTO) shift = shiftAt(opts.at);
+  else throw new Error(`identity-shift: unknown override ${override}`);
+  const expression = spec[shift];
+  const problems = validateExpression(expression);
+  if (problems.length)
+    throw new Error(
+      `identity-shift: invalid ${shift} expression for ${urn}: ${problems.join("; ")}`
+    );
+  // The resolver NEVER invents identity: output urn === input urn, always.
+  return { urn, shift, override, expression };
+}
+
+function listAgentUrns() {
+  return Object.keys(AGENTS);
+}
+
+function main() {
+  const raw = process.argv.slice(2);
+  const urn = raw[0] || "agent:MUSE_CWI";
+  const override = raw[1] || OVERRIDE.AUTO;
+  const at = raw[2] ? new Date(raw[2]) : new Date();
+  const result = resolveShift(urn, { at, override });
+  process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+}
+
+// Entry-point guard: importable by tests without running main().
+if (require.main === module) main();
+
+module.exports = {
+  SHIFT_SCHEDULE,
+  OVERRIDE,
+  AGENTS,
+  listAgentUrns,
+  shiftAt,
+  validateExpression,
+  resolveShift,
+};

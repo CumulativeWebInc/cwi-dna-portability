@@ -3,8 +3,9 @@
  * DNA portability harness — LIVE run via Pollinations (free, no key).
  *
  * Same 3 framings + same deterministic metrics as run.js, but the outputs
- * come from a REAL second model family (Pollinations "openai-fast",
- * GPT-OSS 20B) instead of the MOCK generator. Every output carries
+ * come from a REAL external model family (Pollinations "openai-fast",
+ * GPT-OSS 20B — the first verified live external model family).
+ * Every output carries
  * generator:"pollinations/openai-fast" + timestamp. Failures are recorded
  * in the report, never silently dropped.
  *
@@ -149,7 +150,7 @@ async function runLiveExperiment(profile, task) {
     failed_framings: failures,
     verdict:
       failures.length === 0
-        ? "First live cross-runtime run complete on a second model family. Compare with EXPERIMENT-001 (mock) for rig validation."
+        ? "First verified live run complete on the first verified live external model family (Pollinations). Compare with EXPERIMENT-001 (mock) for rig validation."
         : `Completed with ${failures.length} failed framing(s): ${failures.join(", ")}. Failures recorded, not hidden.`,
   };
 }

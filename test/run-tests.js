@@ -162,3 +162,144 @@ test("runExperiment: works against a full identity profile", () => {
   assert.strictEqual(rep.framings.length, 3);
   assert.ok(rep.metrics.vocab_overlap_mean_jaccard > 0);
 });
+
+/* ------------------------------------------------------------------ */
+/* identity-shift tests                                                 */
+/* ------------------------------------------------------------------ */
+const {
+  SHIFT_SCHEDULE,
+  OVERRIDE,
+  AGENTS,
+  listAgentUrns,
+  shiftAt,
+  validateExpression,
+  resolveShift,
+} = require("../identity-shift.js");
+
+// Local-time constructors: TZ-independent boundary probes.
+const atLocal = (h, m) => new Date(2026, 2, 10, h, m, 0, 0);
+
+test("shiftAt: schedule boundaries (night = 18:00–06:00 local)", () => {
+  assert.strictEqual(shiftAt(atLocal(5, 59)), "night");
+  assert.strictEqual(shiftAt(atLocal(6, 0)), "day");
+  assert.strictEqual(shiftAt(atLocal(17, 59)), "day");
+  assert.strictEqual(shiftAt(atLocal(18, 0)), "night");
+  assert.strictEqual(shiftAt(atLocal(0, 0)), "night");
+  assert.strictEqual(shiftAt(atLocal(12, 0)), "day");
+  assert.strictEqual(SHIFT_SCHEDULE.nightStartHour, 18);
+  assert.strictEqual(SHIFT_SCHEDULE.nightEndHour, 6);
+});
+
+test("resolveShift: manual override beats the clock both ways", () => {
+  const nightTime = atLocal(22, 0);
+  const dayTime = atLocal(10, 0);
+  assert.strictEqual(
+    resolveShift("agent:MUSE_CWI", { at: nightTime, override: OVERRIDE.DAY }).shift,
+    "day"
+  );
+  assert.strictEqual(
+    resolveShift("agent:MUSE_CWI", { at: dayTime, override: OVERRIDE.NIGHT }).shift,
+    "night"
+  );
+  assert.strictEqual(
+    resolveShift("agent:MUSE_CWI", { at: nightTime }).override,
+    OVERRIDE.AUTO
+  );
+  assert.strictEqual(
+    resolveShift("agent:MUSE_CWI", { at: nightTime }).shift,
+    "night"
+  );
+});
+
+test("resolveShift: output urn always equals input urn (never invents identity)", () => {
+  const urns = listAgentUrns();
+  assert.strictEqual(urns.length, 10);
+  for (const urn of urns) {
+    for (const shift of ["day", "night"]) {
+      const override = shift === "day" ? OVERRIDE.DAY : OVERRIDE.NIGHT;
+      const r = resolveShift(urn, { at: atLocal(12, 0), override });
+      assert.strictEqual(r.urn, urn, `identity drift for ${urn}`);
+      assert.strictEqual(r.shift, shift);
+    }
+  }
+});
+
+test("resolveShift: MUSE_CWI day = KingCode (crowned), night = RogueCode (no crown)", () => {
+  const day = resolveShift("agent:MUSE_CWI", { override: OVERRIDE.DAY });
+  assert.strictEqual(day.expression.displayName, "KingCode");
+  assert.ok(day.expression.marks.includes("crown-gold"));
+  assert.ok(day.expression.gear.includes("crown"));
+
+  const night = resolveShift("agent:MUSE_CWI", { override: OVERRIDE.NIGHT });
+  assert.strictEqual(night.expression.displayName, "RogueCode");
+  assert.ok(night.expression.marks.includes("crescent-moon"));
+  for (const mark of night.expression.marks.concat(night.expression.gear)) {
+    assert.ok(!mark.includes("crown"), `night mark must be crownless: ${mark}`);
+  }
+  assert.ok(
+    night.expression.lighting.sun < day.expression.lighting.sun,
+    "night lighting is dimmer"
+  );
+});
+
+test("resolveShift: the nine departments keep one identity across shifts (no alter egos)", () => {
+  for (const urn of listAgentUrns()) {
+    if (urn === "agent:MUSE_CWI") continue;
+    const day = resolveShift(urn, { override: OVERRIDE.DAY });
+    const night = resolveShift(urn, { override: OVERRIDE.NIGHT });
+    assert.strictEqual(
+      day.expression.displayName,
+      night.expression.displayName,
+      `${urn} must not gain an alter ego`
+    );
+    assert.notStrictEqual(
+      day.expression.palette.primary,
+      night.expression.palette.primary,
+      `${urn} night palette must differ from day`
+    );
+  }
+});
+
+test("resolveShift: deterministic — identical inputs give identical outputs", () => {
+  const opts = { at: atLocal(21, 30), override: OVERRIDE.AUTO };
+  const a = resolveShift("agent:CWI_Data", opts);
+  const b = resolveShift("agent:CWI_Data", opts);
+  assert.deepStrictEqual(a, b);
+});
+
+test("resolveShift: rejects unknown urn, unknown override, bad timestamp", () => {
+  assert.throws(() => resolveShift("agent:INVENTED", { at: atLocal(12, 0) }));
+  assert.throws(() =>
+    resolveShift("agent:MUSE_CWI", { at: atLocal(12, 0), override: "sometimes" })
+  );
+  assert.throws(() => resolveShift("agent:MUSE_CWI", { at: "not-a-date" }));
+});
+
+test("identity-shift: every spec variant passes expression validation", () => {
+  for (const urn of listAgentUrns()) {
+    const spec = AGENTS[urn];
+    assert.deepStrictEqual(Object.keys(spec).sort(), ["day", "night"]);
+    for (const variant of ["day", "night"]) {
+      const problems = validateExpression(spec[variant]);
+      assert.strictEqual(
+        problems.length,
+        0,
+        `${urn}/${variant}: ${problems.join("; ")}`
+      );
+    }
+  }
+});
+
+test("validateExpression: catches malformed expressions", () => {
+  assert.ok(
+    validateExpression({ ...AGENTS["agent:MUSE_CWI"].day, accentGlow: "red" })
+      .length > 0
+  );
+  assert.ok(
+    validateExpression({
+      ...AGENTS["agent:MUSE_CWI"].day,
+      lighting: { fog: 2, sun: 1 },
+    }).length > 0
+  );
+  assert.ok(validateExpression(null).length > 0);
+});

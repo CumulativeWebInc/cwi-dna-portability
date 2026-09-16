@@ -21,6 +21,20 @@ node --test test/run-tests.js
 
 `live-run.js` runs the **same rig, same metrics** against a real model endpoint (currently Pollinations `openai-fast`, free tier, no key). Every output carries its generator + timestamp.
 
+## Identity shift
+
+`identity-shift.js` is a portable day/night identity mechanism any product can consume: one agent identity, two expression variants (`day` / `night`), resolved deterministically from viewer-local time plus an explicit manual override (`auto` / `force-day` / `force-night`). Night runs **18:00–06:00 local**; the override wins over the clock; the resolver never invents identity (output URN always equals input URN).
+
+- `agent:MUSE_CWI` ships real reference variants: **KingCode** by day (gold crown, royal blue, gold `{}` emblem) and **RogueCode** by night (crownless, hooded obsidian midnight-blue, pale-blue visor, crescent-moon mark, cyan `{}` emblem, dimmed lighting).
+- The nine departments (`CWI_AandR` … `CWI_Results`) each get simple day/night palette expressions of their **own** identity — no invented alter egos. There is exactly one alter ego: RogueCode = MUSE_CWI.
+
+What it is: a portable expression spec (palette, marks, visor/glow, gear, lighting hints) plus a deterministic resolver and a spec validator. What it is **not**: not a new agent, not simulated emotion — operational states (executing / thinking / waiting / dormant) are separate.
+
+```bash
+node identity-shift.js agent:MUSE_CWI
+node --test test/run-tests.js   # 25 tests, all green
+```
+
 ## Honest state (read this before citing numbers)
 
 | Run | Generator | vocab overlap | bounds adherence | tone consistency |
@@ -28,7 +42,7 @@ node --test test/run-tests.js
 | [EXPERIMENT-001](EXPERIMENT-001.md) | MOCK (labeled) | 0.369 | 1.000 | 0.58 |
 | [EXPERIMENT-002](EXPERIMENT-002.md) | Pollinations / GPT-OSS 20B (live) | 0.097 | 0.750 | 0.121 |
 
-EXPERIMENT-002 was the first live cross-model run — a second model family — and it **caught the model inventing catalog facts**: all three framings recommended tracks that don't exist in the profile ("Midnight Drip", "Neon Alley", "Midnight Specter"), verified absent against the profile. The bounds layer exists precisely to catch this: expression without fact-grounding invents product.
+EXPERIMENT-002 was the first verified live run — Pollinations is the **first verified live external model family** (the mock harness is not a model family) — and it **caught the model inventing catalog facts**: all three framings recommended tracks that don't exist in the profile ("Midnight Drip", "Neon Alley", "Midnight Specter"), verified absent against the profile. The bounds layer exists precisely to catch this: expression without fact-grounding invents product.
 
 Mock-labeled runs are baselines, not results. Live runs are labeled with generator + timestamp. We welcome more model families — that's the experiment that scales.
 
